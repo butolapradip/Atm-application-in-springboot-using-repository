@@ -1,3 +1,4 @@
+
 package com.atm.model;
 
 public class AccountResponse {

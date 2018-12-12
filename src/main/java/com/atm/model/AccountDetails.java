@@ -1,3 +1,4 @@
+//bean class to send account details in JSON format
 package com.atm.model;
 
 public class AccountDetails {

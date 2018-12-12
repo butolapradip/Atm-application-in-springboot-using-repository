@@ -1,3 +1,4 @@
+//controller class for rest mapping
 package com.atm.controller;
 
 import java.util.List;
@@ -16,27 +17,26 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.atm.exception.AtmException;
 import com.atm.model.Account;
 import com.atm.model.AccountDetails;
 import com.atm.model.AccountResponse;
 import com.atm.model.Profile;
 import com.atm.repository.AccountRepository;
-import com.atm.repository.AtmDAL;
+import com.atm.repository.AtmDAO;
 import com.atm.repository.UserRepository;
-import com.atm.service.AccountGenerate;
+import com.atm.service.AccountService;
 
 @RestController
 public class AtmController {
 	@Autowired
-	AccountGenerate generate;
+	AccountService generate;
 	@Autowired
 	private UserRepository userRepository;
 	@Autowired
 	private AccountRepository accountRepository;
 	@Autowired
-	Account account;
-	@Autowired
-	AtmDAL atmdal;
+	AtmDAO atmdao;
 
 	public AtmController(UserRepository userRepository) {
 		this.userRepository = userRepository;
@@ -47,20 +47,15 @@ public class AtmController {
 	}
 
 	public AtmController() {
-
 	}
 
 	@PostMapping(value = "/register")
-	public ResponseEntity<AccountDetails> addNewUsers(@Valid @RequestBody Profile profile) {
+	public ResponseEntity<AccountDetails> addNewUsers(@Valid @RequestBody Profile profile)throws AtmException {
 		long accountNo = generate.accountGenerate();
-		int pin = generate.pinGenerate();
-		System.out.println(accountNo);
 		profile.setAccountNo(accountNo);
 		userRepository.save(profile);
-		account.setAccountNo(accountNo);
-		account.setPin(pin);
-		accountRepository.save(account);
-		return new ResponseEntity<AccountDetails>(new AccountDetails(account.getAccountNo(), account.getPin()),
+		Account userAccount = atmdao.setAccountDetails(profile.getAccountNo());
+		return new ResponseEntity<AccountDetails>(new AccountDetails(userAccount.getAccountNo(), userAccount.getPin()),
 				HttpStatus.OK);
 	}
 
@@ -69,45 +64,43 @@ public class AtmController {
 		return accountRepository.findAll();
 	}
 
-	@PostMapping("/deposit-amount")
-	public ResponseEntity<AccountResponse> amountDeposit(@RequestBody Account deposit) {
-		String balance = atmdal.deposit(deposit.getAccountNo(), deposit.getPin(), deposit.getBalance());
+	@PostMapping("/deposit-amount/amount/{amount}")
+	public ResponseEntity<AccountResponse> amountDeposit(@Valid @RequestHeader int pin, @RequestHeader long accountNo,
+			@PathVariable int amount)throws AtmException {
+		if (amount <= 0) {
+			String msg = "enter positive amount";
+			return new ResponseEntity<>(new AccountResponse(msg), HttpStatus.OK);
+		}
+		String balance = atmdao.deposit(accountNo, pin, amount);
 		return new ResponseEntity<>(new AccountResponse(balance), HttpStatus.OK);
 
 	}
 
-	// @GetMapping("/withdraw-amount")
-	// public ResponseEntity<AccountResponse> amountDraw(@RequestBody Account
-	// withDraw) {
-	// String balance = atmdal.withDraw(withDraw.getAccountNo(),
-	// withDraw.getPin(),withDraw.getBalance());
-	// return new ResponseEntity<AccountResponse>(new AccountResponse(balance),
-	// HttpStatus.OK);
-//}
-//	@GetMapping("/withdraw-amount/account-no/{accountNo}/amount/{amount}")
 	@GetMapping("/withdraw-amount/amount/{amount}")
-	public ResponseEntity<AccountResponse> amountDraw(@RequestHeader int pin, @RequestHeader long accountNo,
-			@PathVariable int amount) {
-		String balance = atmdal.withDraw(accountNo, pin, amount);
+	public ResponseEntity<AccountResponse> amountDraw(@Valid @RequestHeader int pin, @RequestHeader long accountNo,
+			@PathVariable int amount)throws AtmException {
+		if (amount <= 0) {
+			String msg = "enter positive amount";
+			return new ResponseEntity<>(new AccountResponse(msg), HttpStatus.OK);
+		}
+		String balance = atmdao.withDraw(accountNo, pin, amount);
 		return new ResponseEntity<>(new AccountResponse(balance), HttpStatus.OK);
 
 	}
 
 	@PutMapping("/update-profile")
-	public @ResponseBody ResponseEntity<String> updateProfile(@RequestBody Profile profile, @RequestHeader int pin,
-			@RequestHeader long accountNo) {
-		String status = atmdal.updateProfile(profile.getName(), profile.getEmail(), profile.getMobileNo(),
+	public @ResponseBody ResponseEntity<String> updateProfile(@Valid @RequestBody Profile profile,
+			@Valid @RequestHeader int pin, @RequestHeader long accountNo)throws AtmException {
+		String status = atmdao.updateProfile(profile.getName(), profile.getEmail(), profile.getMobileNo(),
 				profile.getPancardNo(), profile.getAdharcardNo(), profile.getDob(), pin, accountNo);
-
-		System.out.println(status.toString());
 		return new ResponseEntity<>(status, HttpStatus.OK);
 	}
 
 	@GetMapping(value = "/check-balance/account-no/{accountNo}")
 
 	public ResponseEntity<AccountResponse> getAccount(@Valid @RequestHeader int pin,
-			@PathVariable("accountNo") long accountNo) {
-		String balance = atmdal.checkBalance(accountNo, pin);
+			@PathVariable("accountNo") long accountNo) throws AtmException{
+		String balance = atmdao.checkBalance(accountNo, pin);
 		return new ResponseEntity<>(new AccountResponse(balance), HttpStatus.OK);
 	}
 

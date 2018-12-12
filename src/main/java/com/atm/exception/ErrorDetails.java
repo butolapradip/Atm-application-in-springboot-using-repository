@@ -1,5 +1,5 @@
 package com.atm.exception;
-
+//bean class for custom error message
 import java.util.Date;
 
 public class ErrorDetails {
